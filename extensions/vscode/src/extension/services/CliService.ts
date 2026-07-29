@@ -32,7 +32,7 @@ export class CliService {
 
   private probeCommand(bin: string, args: string[]): Promise<{ ok: boolean; version?: string }> {
     return new Promise((resolve) => {
-      const proc = spawn(resolveBin(bin), args, { env: getShellEnv() });
+      const proc = spawn(resolveBin(bin), args, { env: getShellEnv(), shell: process.platform === 'win32' });
       let stdout = '';
       let errored = false;
       proc.stdout?.on('data', (d) => { stdout += d.toString(); });
@@ -111,6 +111,7 @@ export class CliService {
       const proc = spawn(resolveBin(this.cliPath), args, {
         cwd,
         env: envExtra ? { ...getShellEnv(), ...envExtra } : getShellEnv(),
+        shell: process.platform === 'win32',
       });
       this.current = proc;
       let stdout = '';

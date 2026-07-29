@@ -1,6 +1,9 @@
 // src/extension/services/__tests__/CliService.test.ts
 process.env.OCR_SKIP_SHELL_RESOLVE = '1';
 import { CliService } from '../CliService';
+import { spawn } from 'child_process';
+
+jest.mock('child_process');
 
 describe('CliService.isAvailable', () => {
   it('node 一定存在 → true', async () => {
@@ -10,6 +13,57 @@ describe('CliService.isAvailable', () => {
   it('不存在的命令 → false', async () => {
     const svc = new CliService('definitely-not-a-real-binary-xyz');
     expect(await svc.isAvailable()).toBe(false);
+  });
+});
+
+describe('CliService probe shell option', () => {
+  const originalPlatform = Object.getOwnPropertyDescriptor(process, 'platform');
+
+  afterEach(() => {
+    jest.resetAllMocks();
+    if (originalPlatform) {
+      Object.defineProperty(process, 'platform', originalPlatform);
+    }
+  });
+
+  it('Windows 上 probeCommand 应传入 shell: true', async () => {
+    Object.defineProperty(process, 'platform', { value: 'win32' });
+    const mockProc = {
+      stdout: { on: jest.fn() },
+      on: jest.fn((event: string, cb: Function) => {
+        if (event === 'close') cb(0);
+      }),
+    };
+    (spawn as jest.Mock).mockReturnValue(mockProc);
+
+    const svc = new CliService('node');
+    await (svc as any).probeCommand('npm', ['--version']);
+
+    expect(spawn).toHaveBeenCalledWith(
+      'npm',
+      ['--version'],
+      expect.objectContaining({ shell: true }),
+    );
+  });
+
+  it('非 Windows 上 probeCommand 不应传入 shell', async () => {
+    Object.defineProperty(process, 'platform', { value: 'linux' });
+    const mockProc = {
+      stdout: { on: jest.fn() },
+      on: jest.fn((event: string, cb: Function) => {
+        if (event === 'close') cb(0);
+      }),
+    };
+    (spawn as jest.Mock).mockReturnValue(mockProc);
+
+    const svc = new CliService('node');
+    await (svc as any).probeCommand('npm', ['--version']);
+
+    expect(spawn).toHaveBeenCalledWith(
+      'npm',
+      ['--version'],
+      expect.not.objectContaining({ shell: true }),
+    );
   });
 });
 
