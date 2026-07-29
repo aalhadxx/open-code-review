@@ -90,18 +90,45 @@ func runConfigSet(key, value string) error {
 		displayValue = maskKey(value)
 	}
 	fmt.Printf("Set %s = %s\n", key, displayValue)
+
+	// Warn when llm.* settings are shadowed by an active provider.
+	if cfg.Provider != "" && strings.HasPrefix(key, "llm.") {
+		fmt.Fprintf(os.Stderr, "[ocr] WARNING: %q is ignored because provider %q is active. Unset the provider first if you want to use legacy llm config.\n", key, cfg.Provider)
+	}
 	return nil
 }
 
 func runConfigUnset(key string) error {
-	parts := strings.SplitN(key, ".", 2)
-	if len(parts) != 2 || parts[1] == "" {
-		return fmt.Errorf("unset supports custom_providers.<name> and mcp_servers.<name>")
-	}
-
 	configPath, err := defaultConfigPath()
 	if err != nil {
 		return err
+	}
+
+	// Top-level keys that do not contain a dot.
+	if !strings.Contains(key, ".") {
+		cfg, err := loadOrCreateConfig(configPath)
+		if err != nil {
+			return fmt.Errorf("load config: %w", err)
+		}
+		switch key {
+		case "provider":
+			cfg.Provider = ""
+			cfg.Model = ""
+		case "model":
+			cfg.Model = ""
+		default:
+			return fmt.Errorf("unset supports provider, model, custom_providers.<name> and mcp_servers.<name>")
+		}
+		if err := saveConfig(configPath, cfg); err != nil {
+			return err
+		}
+		fmt.Printf("Unset %s\n", key)
+		return nil
+	}
+
+	parts := strings.SplitN(key, ".", 2)
+	if len(parts) != 2 || parts[1] == "" {
+		return fmt.Errorf("unset supports provider, model, custom_providers.<name> and mcp_servers.<name>")
 	}
 
 	switch parts[0] {
@@ -110,7 +137,7 @@ func runConfigUnset(key string) error {
 	case "mcp_servers":
 		return unsetMCPServer(configPath, parts[1])
 	default:
-		return fmt.Errorf("unset supports custom_providers.<name> and mcp_servers.<name>")
+		return fmt.Errorf("unset supports provider, model, custom_providers.<name> and mcp_servers.<name>")
 	}
 }
 

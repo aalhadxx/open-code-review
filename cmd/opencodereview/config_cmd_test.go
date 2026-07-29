@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/alibaba/open-code-review/internal/llm"
@@ -1285,5 +1286,158 @@ func TestSetMCPServerValue_HeadersEmptyValue(t *testing.T) {
 	cfg := &Config{}
 	if err := setMCPServerValue(cfg, "mcp_servers.gh.headers", `{"Authorization":""}`); err == nil {
 		t.Fatal("expected error for empty header value, got nil")
+	}
+}
+
+// --- runConfigSet warning tests ---
+
+func TestRunConfigSetWarnsWhenLlmShadowedByProvider(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("HOME", dir)
+
+	// Create a config with an active provider.
+	configPath, _ := defaultConfigPath()
+	cfg := &Config{
+		Provider: "anthropic",
+		Providers: map[string]ProviderEntry{
+			"anthropic": {APIKey: "sk-test"},
+		},
+	}
+	if err := saveConfig(configPath, cfg); err != nil {
+		t.Fatalf("saveConfig: %v", err)
+	}
+
+	// Capture stderr.
+	oldStderr := os.Stderr
+	r, w, _ := os.Pipe()
+	os.Stderr = w
+
+	err := runConfigSet("llm.url", "https://custom.example.com")
+
+	w.Close()
+	os.Stderr = oldStderr
+	if err != nil {
+		t.Fatalf("runConfigSet: %v", err)
+	}
+
+	var buf strings.Builder
+	if _, err := buf.ReadFrom(r); err != nil {
+		t.Fatalf("read stderr: %v", err)
+	}
+	stderr := buf.String()
+
+	if !strings.Contains(stderr, "WARNING") {
+		t.Errorf("stderr = %q, want WARNING about shadowed llm config", stderr)
+	}
+	if !strings.Contains(stderr, "anthropic") {
+		t.Errorf("stderr = %q, want provider name in warning", stderr)
+	}
+}
+
+func TestRunConfigSetNoWarningWhenProviderNotActive(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("HOME", dir)
+
+	configPath, _ := defaultConfigPath()
+	cfg := &Config{}
+	if err := saveConfig(configPath, cfg); err != nil {
+		t.Fatalf("saveConfig: %v", err)
+	}
+
+	oldStderr := os.Stderr
+	r, w, _ := os.Pipe()
+	os.Stderr = w
+
+	err := runConfigSet("llm.url", "https://custom.example.com")
+
+	w.Close()
+	os.Stderr = oldStderr
+	if err != nil {
+		t.Fatalf("runConfigSet: %v", err)
+	}
+
+	var buf strings.Builder
+	if _, err := buf.ReadFrom(r); err != nil {
+		t.Fatalf("read stderr: %v", err)
+	}
+	stderr := buf.String()
+
+	if strings.Contains(stderr, "WARNING") {
+		t.Errorf("stderr = %q, should NOT contain WARNING when no provider is active", stderr)
+	}
+}
+
+// --- runConfigUnset tests ---
+
+func TestRunConfigUnsetProvider(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("HOME", dir)
+
+	configPath, _ := defaultConfigPath()
+	cfg := &Config{
+		Provider: "anthropic",
+		Model:    "claude-opus-4-6",
+		Providers: map[string]ProviderEntry{
+			"anthropic": {APIKey: "sk-test"},
+		},
+	}
+	if err := saveConfig(configPath, cfg); err != nil {
+		t.Fatalf("saveConfig: %v", err)
+	}
+
+	if err := runConfigUnset("provider"); err != nil {
+		t.Fatalf("runConfigUnset: %v", err)
+	}
+
+	cfg, err := loadOrCreateConfig(configPath)
+	if err != nil {
+		t.Fatalf("reload: %v", err)
+	}
+	if cfg.Provider != "" {
+		t.Errorf("Provider = %q, want empty", cfg.Provider)
+	}
+	if cfg.Model != "" {
+		t.Errorf("Model = %q, want empty", cfg.Model)
+	}
+}
+
+func TestRunConfigUnsetModel(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("HOME", dir)
+
+	configPath, _ := defaultConfigPath()
+	cfg := &Config{
+		Provider: "anthropic",
+		Model:    "claude-opus-4-6",
+		Providers: map[string]ProviderEntry{
+			"anthropic": {APIKey: "sk-test"},
+		},
+	}
+	if err := saveConfig(configPath, cfg); err != nil {
+		t.Fatalf("saveConfig: %v", err)
+	}
+
+	if err := runConfigUnset("model"); err != nil {
+		t.Fatalf("runConfigUnset: %v", err)
+	}
+
+	cfg, err := loadOrCreateConfig(configPath)
+	if err != nil {
+		t.Fatalf("reload: %v", err)
+	}
+	if cfg.Provider != "anthropic" {
+		t.Errorf("Provider = %q, want anthropic", cfg.Provider)
+	}
+	if cfg.Model != "" {
+		t.Errorf("Model = %q, want empty", cfg.Model)
+	}
+}
+
+func TestRunConfigUnsetInvalidKey(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("HOME", dir)
+
+	if err := runConfigUnset("invalid_key"); err == nil {
+		t.Fatal("expected error for invalid key")
 	}
 }
