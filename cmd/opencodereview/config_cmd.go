@@ -115,7 +115,21 @@ func runConfigUnset(key string) error {
 			cfg.Provider = ""
 			cfg.Model = ""
 		case "model":
-			cfg.Model = ""
+			if cfg.Provider != "" {
+				if _, isPreset := llm.LookupProvider(cfg.Provider); isPreset {
+					if entry, exists := cfg.Providers[cfg.Provider]; exists {
+						entry.Model = ""
+						cfg.Providers[cfg.Provider] = entry
+					}
+				} else {
+					if entry, exists := cfg.CustomProviders[cfg.Provider]; exists {
+						entry.Model = ""
+						cfg.CustomProviders[cfg.Provider] = entry
+					}
+				}
+			} else {
+				cfg.Model = ""
+			}
 		default:
 			return fmt.Errorf("unset supports provider, model, custom_providers.<name> and mcp_servers.<name>")
 		}
