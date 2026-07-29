@@ -1385,11 +1385,29 @@ func TestRunConfigUnsetProvider(t *testing.T) {
 		t.Fatalf("saveConfig: %v", err)
 	}
 
-	if err := runConfigUnset("provider"); err != nil {
+	oldStderr := os.Stderr
+	r, w, _ := os.Pipe()
+	os.Stderr = w
+
+	err := runConfigUnset("provider")
+
+	w.Close()
+	os.Stderr = oldStderr
+	if err != nil {
 		t.Fatalf("runConfigUnset: %v", err)
 	}
 
-	cfg, err := loadOrCreateConfig(configPath)
+	var buf strings.Builder
+	if _, err := buf.ReadFrom(r); err != nil {
+		t.Fatalf("read stderr: %v", err)
+	}
+	stderr := buf.String()
+
+	if !strings.Contains(stderr, "WARNING") {
+		t.Errorf("stderr = %q, want WARNING about cleared model", stderr)
+	}
+
+	cfg, err = loadOrCreateConfig(configPath)
 	if err != nil {
 		t.Fatalf("reload: %v", err)
 	}
@@ -1410,7 +1428,7 @@ func TestRunConfigUnsetModel(t *testing.T) {
 		Provider: "anthropic",
 		Model:    "claude-opus-4-6",
 		Providers: map[string]ProviderEntry{
-			"anthropic": {APIKey: "sk-test"},
+			"anthropic": {APIKey: "sk-test", Model: "claude-opus-4-6"},
 		},
 	}
 	if err := saveConfig(configPath, cfg); err != nil {
@@ -1429,7 +1447,10 @@ func TestRunConfigUnsetModel(t *testing.T) {
 		t.Errorf("Provider = %q, want anthropic", cfg.Provider)
 	}
 	if cfg.Model != "" {
-		t.Errorf("Model = %q, want empty", cfg.Model)
+		t.Errorf("top-level Model = %q, want empty", cfg.Model)
+	}
+	if cfg.Providers["anthropic"].Model != "" {
+		t.Errorf("provider entry Model = %q, want empty", cfg.Providers["anthropic"].Model)
 	}
 }
 
