@@ -93,7 +93,7 @@ func runConfigSet(key, value string) error {
 
 	// Warn when llm.* settings are shadowed by an active provider.
 	if cfg.Provider != "" && strings.HasPrefix(key, "llm.") {
-		fmt.Fprintf(os.Stderr, "[ocr] WARNING: %q is ignored because provider %q is active. Unset the provider first if you want to use legacy llm config.\n", key, cfg.Provider)
+		fmt.Fprintf(os.Stderr, "[ocr] WARNING: %q will have no effect while provider %q is active. The value is saved but will not be used until the provider is unset.\n", key, cfg.Provider)
 	}
 	return nil
 }
@@ -112,6 +112,9 @@ func runConfigUnset(key string) error {
 		}
 		switch key {
 		case "provider":
+			if cfg.Model != "" {
+				fmt.Fprintf(os.Stderr, "[ocr] WARNING: 'model' has also been cleared because it is tied to the provider.\n")
+			}
 			cfg.Provider = ""
 			cfg.Model = ""
 		case "model":
