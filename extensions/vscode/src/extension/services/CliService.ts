@@ -111,7 +111,6 @@ export class CliService {
       const proc = spawn(resolveBin(this.cliPath), args, {
         cwd,
         env: envExtra ? { ...getShellEnv(), ...envExtra } : getShellEnv(),
-        shell: process.platform === 'win32',
       });
       this.current = proc;
       let stdout = '';
