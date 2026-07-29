@@ -52,6 +52,18 @@ var registry = []Provider{
 		},
 	},
 	{
+		Name:        "openai-responses",
+		DisplayName: "OpenAI Responses API",
+		Protocol:    ProtocolOpenAIResponses,
+		BaseURL:     "https://api.openai.com/v1",
+		EnvVar:      "OPENAI_API_KEY",
+		Models: []string{
+			"gpt-5.6-luna",
+			"gpt-5.6-terra",
+			"gpt-5.6-sol",
+		},
+	},
+	{
 		Name:        "edenai",
 		DisplayName: "Eden AI",
 		Protocol:    ProtocolOpenAIChatCompletions,

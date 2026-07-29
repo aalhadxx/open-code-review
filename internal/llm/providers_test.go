@@ -40,7 +40,7 @@ func TestListProviders_Order(t *testing.T) {
 	if len(providers) < 3 {
 		t.Fatalf("expected at least 3 providers, got %d", len(providers))
 	}
-	expected := []string{"anthropic", "baidu-qianfan", "dashscope", "dashscope-tokenplan", "deepseek", "edenai", "hy-tokenplan", "iflytek", "kimi", "litellm", "mimo", "minimax", "ollama-cloud", "openai", "tencent-tokenhub", "volcengine", "z-ai", "z-ai-coding"}
+	expected := []string{"anthropic", "baidu-qianfan", "dashscope", "dashscope-tokenplan", "deepseek", "edenai", "hy-tokenplan", "iflytek", "kimi", "litellm", "mimo", "minimax", "ollama-cloud", "openai", "openai-responses", "tencent-tokenhub", "volcengine", "z-ai", "z-ai-coding"}
 	if len(providers) != len(expected) {
 		t.Fatalf("expected %d providers, got %d", len(expected), len(providers))
 	}
@@ -77,6 +77,25 @@ func TestLookupProvider_PreservesModelOrder(t *testing.T) {
 		t.Fatal("anthropic not found")
 	}
 	expected := []string{"claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6", "claude-sonnet-4-6"}
+	if len(p.Models) != len(expected) {
+		t.Fatalf("expected %d models, got %d", len(expected), len(p.Models))
+	}
+	for i, model := range expected {
+		if p.Models[i] != model {
+			t.Errorf("Models[%d] = %q, want %q", i, p.Models[i], model)
+		}
+	}
+}
+
+func TestLookupProvider_OpenAIResponsesModels(t *testing.T) {
+	p, ok := LookupProvider("openai-responses")
+	if !ok {
+		t.Fatal("openai-responses not found")
+	}
+	if p.Protocol != ProtocolOpenAIResponses {
+		t.Errorf("Protocol = %q, want %q", p.Protocol, ProtocolOpenAIResponses)
+	}
+	expected := []string{"gpt-5.6-luna", "gpt-5.6-terra", "gpt-5.6-sol"}
 	if len(p.Models) != len(expected) {
 		t.Fatalf("expected %d models, got %d", len(expected), len(p.Models))
 	}
