@@ -32,6 +32,7 @@ export class CliService {
 
   private probeCommand(bin: string, args: string[]): Promise<{ ok: boolean; version?: string }> {
     return new Promise((resolve) => {
+      // shell: true is safe here because args are hardcoded ['--version'] — no user input.
       const proc = spawn(resolveBin(bin), args, { env: getShellEnv(), shell: process.platform === 'win32' });
       let stdout = '';
       let errored = false;

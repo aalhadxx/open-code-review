@@ -3,8 +3,6 @@ process.env.OCR_SKIP_SHELL_RESOLVE = '1';
 import { CliService } from '../CliService';
 import { spawn } from 'child_process';
 
-jest.mock('child_process');
-
 describe('CliService.isAvailable', () => {
   it('node 一定存在 → true', async () => {
     const svc = new CliService('node');
@@ -18,9 +16,14 @@ describe('CliService.isAvailable', () => {
 
 describe('CliService probe shell option', () => {
   const originalPlatform = Object.getOwnPropertyDescriptor(process, 'platform');
+  let spawnSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    spawnSpy = jest.spyOn(require('child_process'), 'spawn');
+  });
 
   afterEach(() => {
-    jest.resetAllMocks();
+    spawnSpy.mockRestore();
     if (originalPlatform) {
       Object.defineProperty(process, 'platform', originalPlatform);
     }
@@ -34,12 +37,12 @@ describe('CliService probe shell option', () => {
         if (event === 'close') cb(0);
       }),
     };
-    (spawn as jest.Mock).mockReturnValue(mockProc);
+    spawnSpy.mockReturnValue(mockProc as any);
 
     const svc = new CliService('node');
     await (svc as any).probeCommand('npm', ['--version']);
 
-    expect(spawn).toHaveBeenCalledWith(
+    expect(spawnSpy).toHaveBeenCalledWith(
       'npm',
       ['--version'],
       expect.objectContaining({ shell: true }),
@@ -54,15 +57,15 @@ describe('CliService probe shell option', () => {
         if (event === 'close') cb(0);
       }),
     };
-    (spawn as jest.Mock).mockReturnValue(mockProc);
+    spawnSpy.mockReturnValue(mockProc as any);
 
     const svc = new CliService('node');
     await (svc as any).probeCommand('npm', ['--version']);
 
-    expect(spawn).toHaveBeenCalledWith(
+    expect(spawnSpy).toHaveBeenCalledWith(
       'npm',
       ['--version'],
-      expect.not.objectContaining({ shell: true }),
+      expect.objectContaining({ shell: false }),
     );
   });
 });
