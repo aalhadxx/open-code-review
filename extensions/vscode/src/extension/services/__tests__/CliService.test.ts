@@ -1,7 +1,6 @@
 // src/extension/services/__tests__/CliService.test.ts
 process.env.OCR_SKIP_SHELL_RESOLVE = '1';
 import { CliService } from '../CliService';
-import { spawn } from 'child_process';
 
 describe('CliService.isAvailable', () => {
   it('node 一定存在 → true', async () => {
@@ -19,6 +18,7 @@ describe('CliService probe shell option', () => {
   let spawnSpy: jest.SpyInstance;
 
   beforeEach(() => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     spawnSpy = jest.spyOn(require('child_process'), 'spawn');
   });
 
@@ -33,7 +33,7 @@ describe('CliService probe shell option', () => {
     Object.defineProperty(process, 'platform', { value: 'win32' });
     const mockProc = {
       stdout: { on: jest.fn() },
-      on: jest.fn((event: string, cb: Function) => {
+      on: jest.fn((event: string, cb: (code: number) => void) => {
         if (event === 'close') cb(0);
       }),
     };
@@ -53,7 +53,7 @@ describe('CliService probe shell option', () => {
     Object.defineProperty(process, 'platform', { value: 'linux' });
     const mockProc = {
       stdout: { on: jest.fn() },
-      on: jest.fn((event: string, cb: Function) => {
+      on: jest.fn((event: string, cb: (code: number) => void) => {
         if (event === 'close') cb(0);
       }),
     };
